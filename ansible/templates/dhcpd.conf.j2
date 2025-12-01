@@ -1,0 +1,33 @@
+# dhcpd.conf
+#
+# Sample configuration file for ISC dhcpd
+#
+
+# option definitions common to all supported networks...
+option domain-name "{{ nome1 }}.{{ nome2 }}.devops";
+option domain-name-servers 192.168.56.1{{ matricula_xx }};
+
+default-lease-time 180;
+max-lease-time 3600;
+
+# Use this to enble / disable dynamic dns updates globally.
+ddns-update-style none;
+
+# This is a basic subnet declaration.
+subnet 192.168.56.0 netmask 255.255.255.0 {
+  range 192.168.56.50 192.168.56.100;
+  option routers 192.168.56.1;
+}
+
+# Reserva de IP para o servidor de banco de dados (db)
+host db {
+  hardware ethernet 08:00:27:00:01:{{ matricula_db_yy }};
+  fixed-address 192.168.56.1{{ matricula_db_yy }};
+}
+
+# Reserva de IP para o servidor de aplicacao (app)
+host app {
+  hardware ethernet 08:00:27:00:02:{{ matricula_app_xy }};
+  fixed-address 192.168.56.1{{ matricula_app_xy }};
+}
+

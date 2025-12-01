@@ -1,0 +1,32 @@
+# Este é um inventário estático para referência.
+# O Vagrant irá gerar um inventário dinâmico em tempo de execução,
+# mas este arquivo ajuda a definir a estrutura e as variáveis.
+
+[arq]
+arq.pedro.joao.devops
+
+[db]
+db.pedro.joao.devops
+
+[app]
+app.pedro.joao.devops
+
+[cli]
+cli.pedro.joao.devops
+
+# Grupo que contém todos os outros grupos.
+[devops:children]
+arq
+db
+app
+cli
+
+# Variáveis que se aplicam a TODOS os hosts.
+[all:vars]
+# Garante que o Ansible use o Python 3 nas máquinas remotas.
+ansible_python_interpreter=/usr/bin/python3
+
+# Passa os nomes dos integrantes como variáveis para os playbooks.
+nome1=pedro
+nome2=joao
+

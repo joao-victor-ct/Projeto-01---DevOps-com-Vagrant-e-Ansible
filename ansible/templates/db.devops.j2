@@ -1,0 +1,16 @@
+;
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     arq.{{ nome1 }}.{{ nome2 }}.devops. root.{{ nome1 }}.{{ nome2 }}.devops. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      arq.{{ nome1 }}.{{ nome2 }}.devops.
+arq     IN      A       192.168.56.1{{ matricula_xx }}
+db      IN      A       192.168.56.1{{ matricula_db_yy }}
+app     IN      A       192.168.56.1{{ matricula_app_xy }}
+

@@ -1,0 +1,39 @@
+---
+- hosts: db
+  become: yes
+  tasks:
+
+    # TAREFA 1: INSTALAÇÃO DE PACOTES
+    # Instala o MariaDB (servidor de banco de dados) e o autofs.
+  
+    - name: Install MariaDB server and autofs packages
+      apt:
+        name:
+          - mariadb-server
+          - autofs
+        state: present
+        update_cache: yes
+
+    # TAREFA 2: CONFIGURAÇÃO DO AUTOFS
+    # Configura a montagem automática do compartilhamento NFS.
+  
+    - name: Apply autofs master map from template
+      template:
+        src: templates/auto.master.j2
+        dest: /etc/auto.master
+      notify: Restart autofs
+
+    - name: Apply autofs NFS map from template
+      template:
+        src: templates/auto.nfs.j2
+        dest: /etc/auto.nfs
+      notify: Restart autofs
+
+  # HANDLERS: Reinicia o serviço se a configuração mudar.
+  
+  handlers:
+    - name: Restart autofs
+      service:
+        name: autofs
+        state: restarted
+

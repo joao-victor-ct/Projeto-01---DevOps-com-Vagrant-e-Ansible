@@ -1,0 +1,16 @@
+;
+; BIND reverse data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     arq.{{ nome1 }}.{{ nome2 }}.devops. root.{{ nome1 }}.{{ nome2 }}.devops. (
+                              1         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      arq.
+{{ matricula_xx | regex_replace('^(\\d)$', '0\\1') }}   IN      PTR     arq.{{ nome1 }}.{{ nome2 }}.devops.
+{{ matricula_db_yy | regex_replace('^(\\d)$', '0\\1') }}  IN      PTR     db.{{ nome1 }}.{{ nome2 }}.devops.
+{{ matricula_app_xy | regex_replace('^(\\d)$', '0\\1') }} IN      PTR     app.{{ nome1 }}.{{ nome2 }}.devops.
+

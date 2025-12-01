@@ -1,0 +1,56 @@
+---
+- hosts: cli
+  become: yes
+  tasks:
+    
+    # TAREFA 1: INSTALAÇÃO DE PACOTES
+    # Instala o Firefox, o xauth (para X11 forwarding) e o autofs.
+  
+    - name: Install Firefox, xauth, and autofs packages
+      apt:
+        name:
+          - firefox-esr
+          - xauth
+          - autofs
+        state: present
+        update_cache: yes
+
+    # TAREFA 2: CONFIGURAÇÃO DO SSH PARA X11 FORWARDING
+    # Permite que aplicações gráficas sejam exibidas via SSH.
+  
+    - name: Enable X11 Forwarding in SSH server
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?X11Forwarding'
+        line: 'X11Forwarding yes'
+        state: present
+      notify: Restart sshd
+
+    # TAREFA 3: CONFIGURAÇÃO DO AUTOFS
+    # Configura a montagem automática do compartilhamento NFS.
+    
+    - name: Apply autofs master map from template
+      template:
+        src: templates/auto.master.j2
+        dest: /etc/auto.master
+      notify: Restart autofs
+
+    - name: Apply autofs NFS map from template
+      template:
+        src: templates/auto.nfs.j2
+        dest: /etc/auto.nfs
+      notify: Restart autofs
+
+  # HANDLERS: Reiniciam os serviços se as configurações mudarem.
+
+  handlers:
+    - name: Restart autofs
+      service:
+        name: autofs
+        state: restarted
+
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
+

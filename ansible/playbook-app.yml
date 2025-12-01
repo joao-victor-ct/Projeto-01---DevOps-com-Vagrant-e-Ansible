@@ -1,0 +1,50 @@
+---
+- hosts: app
+  become: yes
+  tasks:
+  
+    # TAREFA 1: INSTALAÇÃO DE PACOTES
+    # Instala o Apache (servidor web) e o autofs.
+    
+    - name: Install Apache2 and autofs packages
+      apt:
+        name:
+          - apache2
+          - autofs
+        state: present
+        update_cache: yes
+
+    # TAREFA 2: CONFIGURAÇÃO DO SERVIDOR WEB
+    # Substitui a página padrão do Apache pela nossa página personalizada.
+
+    - name: Deploy custom index.html page
+      template:
+        src: templates/index.html.j2
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    # TAREFA 3: CONFIGURAÇÃO DO AUTOFS
+    # Configura a montagem automática do compartilhamento NFS.
+
+    - name: Apply autofs master map from template
+      template:
+        src: templates/auto.master.j2
+        dest: /etc/auto.master
+      notify: Restart autofs
+
+    - name: Apply autofs NFS map from template
+      template:
+        src: templates/auto.nfs.j2
+        dest: /etc/auto.nfs
+      notify: Restart autofs
+
+  # HANDLERS: Reinicia o serviço se a configuração mudar.
+
+  handlers:
+    - name: Restart autofs
+      service:
+        name: autofs
+        state: restarted
+

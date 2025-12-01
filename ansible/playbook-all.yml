@@ -1,0 +1,123 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    # TAREFA 1: ATUALIZAÇÃO DO SISTEMA OPERACIONAL
+    # Garante que todos os pacotes estão na versão mais recente.
+    - name: Update apt-get repo and cache
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+
+    - name: Upgrade all apt packages
+      apt:
+        upgrade: dist
+        force_apt_get: yes
+
+    # TAREFA 2: CONFIGURAÇÃO DE HORA (NTP)
+    # Instala o 'chrony' e o configura para sincronizar com servidores brasileiros.
+    - name: Install chrony NTP client
+      apt:
+        name: chrony
+        state: present
+
+    - name: Configure chrony to use Brazilian NTP servers
+      template:
+        src: templates/chrony.conf.j2
+        dest: /etc/chrony/chrony.conf
+      notify: Restart chrony
+
+    # TAREFA 3: CONFIGURAÇÃO DE FUSO HORÁRIO
+    # Ajusta o timezone de todas as máquinas para America/Recife.
+    - name: Set timezone to America/Recife
+      timezone:
+        name: America/Recife
+
+    # TAREFA 4: GERENCIAMENTO DE USUÁRIOS E GRUPOS
+    # Cria o grupo 'ifpb' e os usuários 'pedro' e 'joao'.
+    - name: Create 'ifpb' group
+      group:
+        name: ifpb
+        state: present
+
+    - name: Create users 'pedro' and 'joao'
+      user:
+        name: "{{ item }}"
+        state: present
+        groups: ifpb
+        append: yes
+        shell: /bin/bash
+      loop:
+        - "{{ nome1 }}" # Variável do inventário (pedro)
+        - "{{ nome2 }}" # Variável do inventário (joao)
+
+    # TAREFA 5: CONFIGURAÇÃO DO SERVIDOR SSH
+    # Aumenta a segurança do acesso SSH.
+    - name: Configure SSH Server
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+      notify: Restart sshd
+
+    - name: Allow SSH access only for 'vagrant' and 'ifpb' groups
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "AllowGroups vagrant ifpb"
+        state: present
+      notify: Restart sshd
+
+    - name: Create SSH authorized_keys for users
+      authorized_key:
+        user: "{{ item }}"
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+      loop:
+        - "{{ nome1 }}"
+        - "{{ nome2 }}"
+
+    - name: Add welcome banner to SSH
+      copy:
+        content: |
+          ###############################################################
+          #                                                             #
+          #    Acesso apenas para pessoas com autorizacao expressa!!!   #
+          #                                                             #
+          ###############################################################
+        dest: /etc/motd
+
+    # TAREFA 6: INSTALAÇÃO DO CLIENTE NFS
+    # Necessário para 'db', 'app' e 'cli' montarem o diretório compartilhado.
+    - name: Install NFS client package
+      apt:
+        name: nfs-common
+        state: present
+
+    # TAREFA 7: CONFIGURAÇÃO DO SUDO
+    # Permite que usuários do grupo 'ifpb' executem comandos como root.
+    - name: Allow 'ifpb' group to have sudo privileges
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%ifpb'
+        line: '%ifpb ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+  # HANDLERS: AÇÕES EXECUTADAS APENAS SE NOTIFICADAS
+  # São usados para reiniciar serviços apenas quando a configuração muda.
+  handlers:
+    - name: Restart chrony
+      service:
+        name: chrony
+        state: restarted
+
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
+

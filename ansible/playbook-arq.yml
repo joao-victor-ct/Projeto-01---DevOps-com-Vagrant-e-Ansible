@@ -1,0 +1,131 @@
+---
+- hosts: arq
+  become: yes
+  tasks:
+    # TAREFA 1: INSTALAÇÃO DE PACOTES
+    # Instala todos os pacotes necessários para LVM, DHCP, DNS e NFS.
+    - name: Install required packages for arq server
+      apt:
+        name:
+          - lvm2
+          - isc-dhcp-server
+          - bind9
+          - nfs-kernel-server
+        state: present
+        update_cache: yes
+
+    # TAREFA 2: CONFIGURAÇÃO DO LVM
+    - name: Create 'dados' Volume Group
+      community.general.lvg:
+        vg: dados
+        pvs: /dev/sdb,/dev/sdc,/dev/sdd
+
+    - name: Create 'ifpb' Logical Volume with 15GB
+      community.general.lvol:
+        vg: dados
+        lv: ifpb
+        size: 15g
+
+    - name: Format the 'ifpb' LV with ext4 filesystem
+      community.general.filesystem:
+        fstype: ext4
+        dev: /dev/dados/ifpb
+
+    - name: Create /dados mount point
+      file:
+        path: /dados
+        state: directory
+        mode: '0755'
+
+    - name: Mount the 'ifpb' LV on /dados
+      ansible.posix.mount:
+        path: /dados
+        src: /dev/dados/ifpb
+        fstype: ext4
+        state: mounted
+
+    # TAREFA 3: CONFIGURAÇÃO DO SERVIDOR DHCP
+    - name: Configure DHCP server to listen on eth1
+      lineinfile:
+        path: /etc/default/isc-dhcp-server
+        regexp: '^INTERFACESv4='
+        line: 'INTERFACESv4="eth1"'
+
+    - name: Apply DHCP configuration from template
+      template:
+        src: templates/dhcpd.conf.j2
+        dest: /etc/dhcp/dhcpd.conf
+      notify: Restart isc-dhcp-server
+
+    # TAREFA 4: CONFIGURAÇÃO DO SERVIDOR DNS
+  
+    - name: Apply main DNS configuration from template
+      template:
+        src: templates/named.conf.local.j2
+        dest: /etc/bind/named.conf.local
+      notify: Restart bind9
+
+    - name: Apply direct zone file from template
+      template:
+        src: templates/db.devops.j2
+        dest: "/etc/bind/db.devops"
+      notify: Restart bind9
+
+    - name: Apply reverse zone file from template
+      template:
+        src: templates/db.192.168.56.j2
+        dest: "/etc/bind/db.192.168.56"
+      notify: Restart bind9
+
+    - name: Allow DNS queries from internal network
+      lineinfile:
+        path: /etc/bind/named.conf.options
+        insertafter: 'listen-on-v6 { any; };'
+        line: |
+          
+          acl "internal-network" {
+              192.168.56.0/24;
+          };
+
+          allow-query { any; };
+          allow-query-cache { "internal-network"; };
+          
+          forwarders {
+              1.1.1.1;
+              8.8.8.8;
+          };
+          forward only;
+
+    # TAREFA 5: CONFIGURAÇÃO DO SERVIDOR NFS
+
+    - name: Create /dados/nfs directory
+      file:
+        path: /dados/nfs
+        state: directory
+        mode: '0777' # Permissões abertas inicialmente
+
+    - name: Apply NFS exports configuration from template
+      template:
+        src: templates/exports.j2
+        dest: /etc/exports
+      notify: Restart nfs-server
+
+
+  # HANDLERS: Reiniciam os serviços se as configurações mudarem.
+
+  handlers:
+    - name: Restart isc-dhcp-server
+      service:
+        name: isc-dhcp-server
+        state: restarted
+
+    - name: Restart bind9
+      service:
+        name: bind9
+        state: restarted
+
+    - name: Restart nfs-server
+      service:
+        name: nfs-kernel-server
+        state: restarted
+
