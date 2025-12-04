@@ -12,9 +12,9 @@ MATRICULA_XY_APP = "30"
 
 Vagrant.configure("2") do |config|
 
-  # ===================================================================
+
   # CONFIGURAÇÕES GLOBAIS
-  # ===================================================================
+
   config.vm.box = "debian/bookworm64"
   config.ssh.insert_key = false
 
@@ -22,18 +22,16 @@ Vagrant.configure("2") do |config|
     vb.linked_clone = true
   end
 
-  # ===================================================================
+
   # VM ARQ
-  # ===================================================================
+
   config.vm.define "arq" do |arq|
     arq.vm.hostname = "arq.#{NOME1}.#{NOME2}.devops"
-    arq.vm.network "private_network", ip: "192.168.56.#{MATRICULA_XX}"
 
     arq.vm.provider "virtualbox" do |vb|
       vb.name = "arq"
       vb.memory = 512
 
-      # ✅ USA O CONTROLADOR PADRÃO: "SATA Controller"
       ["disk1.vdi", "disk2.vdi", "disk3.vdi"].each_with_index do |disk, i|
         unless File.exist?(disk)
           vb.customize ['createhd', '--filename', disk, '--size', 10240]
@@ -51,13 +49,11 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # ===================================================================
+
   # VM DB
-  # ===================================================================
+
   config.vm.define "db" do |db|
     db.vm.hostname = "db.#{NOME1}.#{NOME2}.devops"
-    db.vm.network "private_network", type: "dhcp",
-      mac: "0800270001#{MATRICULA_YY.rjust(2, "0")}"
 
     db.vm.provider "virtualbox" do |vb|
       vb.name = "db"
@@ -65,13 +61,11 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # ===================================================================
+
   # VM APP
-  # ===================================================================
+
   config.vm.define "app" do |app|
     app.vm.hostname = "app.#{NOME1}.#{NOME2}.devops"
-    app.vm.network "private_network", type: "dhcp",
-      mac: "0800270002#{MATRICULA_XY_APP.rjust(2, "0")}"
 
     app.vm.provider "virtualbox" do |vb|
       vb.name = "app"
@@ -79,12 +73,11 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # ===================================================================
+
   # VM CLI
-  # ===================================================================
+
   config.vm.define "cli" do |cli|
     cli.vm.hostname = "cli.#{NOME1}.#{NOME2}.devops"
-    cli.vm.network "private_network", type: "dhcp"
 
     cli.vm.provider "virtualbox" do |vb|
       vb.name = "cli"
@@ -92,9 +85,9 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # ===================================================================
+  
   # PROVISIONAMENTO COM ANSIBLE
-  # ===================================================================
+  
   config.vm.provision "ansible" do |ansible|
     ansible.playbook = "ansible/playbook-all.yml"
     ansible.groups = {
@@ -114,4 +107,3 @@ Vagrant.configure("2") do |config|
   end
 
 end
-
