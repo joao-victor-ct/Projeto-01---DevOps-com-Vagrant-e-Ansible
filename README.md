@@ -32,6 +32,7 @@ Ansible - Provisionamento e configuração automatizada
 🚀 Pré-requisitos
 
 Antes de começar, você precisa ter instalado:
+
 Vagrant
 
 VirtualBox
