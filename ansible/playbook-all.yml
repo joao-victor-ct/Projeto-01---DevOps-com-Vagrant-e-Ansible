@@ -1,85 +1,97 @@
 ---
 - hosts: all
-  become: yes
+  become: yes  # Garante que as tarefas sejam executadas com privilégios de superusuário (root)
   tasks:
+
+    # ===================================================================
     # TAREFA 1: ATUALIZAÇÃO DO SISTEMA OPERACIONAL
-    # Garante que todos os pacotes estão na versão mais recente.
+    # ===================================================================
+    # Atualiza os repositórios e os pacotes do sistema para garantir que
+    # todas as máquinas estejam com as versões mais recentes.
     - name: Update apt-get repo and cache
       apt:
-        update_cache: yes
-        force_apt_get: yes
-        cache_valid_time: 3600
+        update_cache: yes             # Atualiza o cache do apt
+        force_apt_get: yes            # Força a atualização do apt-get
+        cache_valid_time: 3600        # Mantém o cache válido por 1 hora
 
     - name: Upgrade all apt packages
       apt:
-        #upgrade: dist
-        #force_apt_get: yes
+        upgrade: dist                 # Atualiza todos os pacotes do sistema para a versão mais recente
 
+    # ===================================================================
     # TAREFA 2: CONFIGURAÇÃO DE HORA (NTP)
-    # Instala o 'chrony' e o configura para sincronizar com servidores brasileiros.
+    # ===================================================================
+    # O objetivo dessa tarefa é garantir que a hora das máquinas esteja
+    # sincronizada com servidores de tempo brasileiros utilizando o 'chrony'.
     - name: Install chrony NTP client
       apt:
         name: chrony
-        state: present
+        state: present                 # Instala o cliente NTP (Chrony) se ele ainda não estiver presente
 
     - name: Configure chrony to use Brazilian NTP servers
       template:
-        src: templates/chrony.conf.j2
-        dest: /etc/chrony/chrony.conf
-      notify: Restart chrony
+        src: templates/chrony.conf.j2  # Utiliza um template Jinja2 para configurar o chrony
+        dest: /etc/chrony/chrony.conf  # Coloca o arquivo de configuração na máquina
+      notify: Restart chrony            # Notifica o handler para reiniciar o serviço chrony após a alteração
 
+    # ===================================================================
     # TAREFA 3: CONFIGURAÇÃO DE FUSO HORÁRIO
-    # Ajusta o timezone de todas as máquinas para America/Recife.
+    # ===================================================================
+    # Define o fuso horário da máquina para o fuso horário correto do Brasil (Recife).
     - name: Set timezone to America/Recife
       timezone:
-        name: America/Recife
+        name: America/Recife           # Define o fuso horário para America/Recife
 
+    # ===================================================================
     # TAREFA 4: GERENCIAMENTO DE USUÁRIOS E GRUPOS
-    # Cria o grupo 'ifpb' e os usuários 'pedro' e 'joao'.
+    # ===================================================================
+    # Criação do grupo 'ifpb' e dos usuários 'pedro' e 'joao' no sistema.
     - name: Create 'ifpb' group
       group:
         name: ifpb
-        state: present
+        state: present                 # Cria o grupo 'ifpb' se ele não existir
 
     - name: Create users 'pedro' and 'joao'
       user:
-        name: "{{ item }}"
-        state: present
-        groups: ifpb
-        append: yes
-        shell: /bin/bash
+        name: "{{ item }}"             # Cria os usuários utilizando as variáveis 'nome1' e 'nome2'
+        state: present                 # Garante que os usuários 'pedro' e 'joao' existam
+        groups: ifpb                   # Adiciona os usuários ao grupo 'ifpb'
+        append: yes                    # Permite que os usuários sejam adicionados ao grupo sem removê-los de outros grupos
+        shell: /bin/bash               # Define o shell padrão como bash
       loop:
-        - "{{ nome1 }}" # Variável do inventário (pedro)
-        - "{{ nome2 }}" # Variável do inventário (joao)
+        - "{{ nome1 }}"  # Variável do inventário (pedro)
+        - "{{ nome2 }}"  # Variável do inventário (joao)
 
+    # ===================================================================
     # TAREFA 5: CONFIGURAÇÃO DO SERVIDOR SSH
-    # Aumenta a segurança do acesso SSH.
+    # ===================================================================
+    # Ajusta a configuração do SSH para aumentar a segurança e restringir o acesso.
     - name: Configure SSH Server
       lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-        state: present
+        path: /etc/ssh/sshd_config       # Arquivo de configuração do servidor SSH
+        regexp: "{{ item.regexp }}"      # Regex para procurar a linha a ser modificada
+        line: "{{ item.line }}"          # Linha a ser adicionada ou modificada no arquivo
+        state: present                   # Garante que a linha esteja presente
       loop:
-        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
-        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
-      notify: Restart sshd
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }  # Desabilita a autenticação por senha
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }  # Desabilita login como root
+      notify: Restart sshd              # Notifica o handler para reiniciar o serviço SSH
 
     - name: Allow SSH access only for 'vagrant' and 'ifpb' groups
       lineinfile:
         path: /etc/ssh/sshd_config
-        line: "AllowGroups vagrant ifpb"
+        line: "AllowGroups vagrant ifpb"  # Permite apenas os grupos 'vagrant' e 'ifpb' a acessarem via SSH
         state: present
-      notify: Restart sshd
+      notify: Restart sshd              # Reinicia o serviço SSH para aplicar as mudanças
 
     - name: Create SSH authorized_keys for users
       authorized_key:
-        user: "{{ item }}"
+        user: "{{ item }}"               # Cria a chave SSH autorizada para os usuários 'pedro' e 'joao'
         state: present
-        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"  # Utiliza a chave pública do usuário para configurar o acesso SSH
       loop:
-        - "{{ nome1 }}"
-        - "{{ nome2 }}"
+        - "{{ nome1 }}"  # Variável do inventário (pedro)
+        - "{{ nome2 }}"  # Variável do inventário (joao)
 
     - name: Add welcome banner to SSH
       copy:
@@ -89,35 +101,40 @@
           #    Acesso apenas para pessoas com autorizacao expressa!!!   #
           #                                                             #
           ###############################################################
-        dest: /etc/motd
+        dest: /etc/motd                    # Adiciona uma mensagem de boas-vindas ao login SSH
 
+    # ===================================================================
     # TAREFA 6: INSTALAÇÃO DO CLIENTE NFS
-    # Necessário para 'db', 'app' e 'cli' montarem o diretório compartilhado.
+    # ===================================================================
+    # Instala o cliente NFS, necessário para a configuração de compartilhamento
+    # de arquivos entre as VMs (como 'db', 'app' e 'cli').
     - name: Install NFS client package
       apt:
         name: nfs-common
-        state: present
+        state: present                     # Instala o pacote 'nfs-common' para permitir a montagem de diretórios NFS
 
+    # ===================================================================
     # TAREFA 7: CONFIGURAÇÃO DO SUDO
-    # Permite que usuários do grupo 'ifpb' executem comandos como root.
+    # ===================================================================
+    # Concede permissões sudo para os membros do grupo 'ifpb'.
     - name: Allow 'ifpb' group to have sudo privileges
       lineinfile:
         path: /etc/sudoers
         state: present
         regexp: '^%ifpb'
-        line: '%ifpb ALL=(ALL) NOPASSWD: ALL'
-        validate: 'visudo -cf %s'
+        line: '%ifpb ALL=(ALL) NOPASSWD: ALL'  # Permite que membros do grupo 'ifpb' executem comandos como root sem senha
+        validate: 'visudo -cf %s'             # Valida a sintaxe do arquivo sudoers para evitar erros
 
   # HANDLERS: AÇÕES EXECUTADAS APENAS SE NOTIFICADAS
-  # São usados para reiniciar serviços apenas quando a configuração muda.
+  # ===================================================================
+  # São usados para reiniciar serviços somente quando a configuração é alterada.
   handlers:
     - name: Restart chrony
       service:
         name: chrony
-        state: restarted
+        state: restarted                     # Reinicia o serviço 'chrony' para aplicar as novas configurações de NTP
 
     - name: Restart sshd
       service:
         name: sshd
-        state: restarted
-
+        state: restarted                     # Reinicia o serviço SSH para aplicar as mudanças de configuração
