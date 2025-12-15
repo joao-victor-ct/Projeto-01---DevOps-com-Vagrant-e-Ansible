@@ -53,8 +53,9 @@ cd Projeto-01---DevOps-com-Vagrant-e-Ansible
 2. Inserir chave privada
 ´´´
 ssh-keygen -t rsa -b 4096
+´´
 
-3. Suba as máquinas com Vagrant
+4. Suba as máquinas com Vagrant
 
 vagrant up
 
