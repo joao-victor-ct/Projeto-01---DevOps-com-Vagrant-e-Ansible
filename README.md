@@ -34,7 +34,7 @@ Ansible - Provisionamento e configuração automatizada
 Antes de começar, você precisa ter instalado:
 Vagrant
 
-VirtualBox ou outro provider compatível com Vagrant
+VirtualBox
 
 Ansible
 
