@@ -1,50 +1,54 @@
 ---
-- hosts: app
-  become: yes
+- hosts: app                # Define que esse playbook será executado apenas na VM 'app'
+  become: yes               # Garante que as tarefas sejam executadas com privilégios de superusuário (root)
   tasks:
-  
+
+    # ===================================================================
     # TAREFA 1: INSTALAÇÃO DE PACOTES
-    # Instala o Apache (servidor web) e o autofs.
-    
+    # ===================================================================
+    # Instala os pacotes Apache2 (servidor web) e autofs (para montagem automática de diretórios)
     - name: Install Apache2 and autofs packages
       apt:
         name:
-          - apache2
-          - autofs
-        state: present
-        update_cache: yes
+          - apache2            # Instala o servidor web Apache2
+          - autofs             # Instala o serviço autofs (para montagem automática de NFS)
+        state: present          # Garante que os pacotes sejam instalados
+        update_cache: yes       # Atualiza o cache dos pacotes antes da instalação
 
+    # ===================================================================
     # TAREFA 2: CONFIGURAÇÃO DO SERVIDOR WEB
-    # Substitui a página padrão do Apache pela nossa página personalizada.
-
+    # ===================================================================
+    # Substitui a página padrão do Apache2 pela página personalizada definida pelo template
     - name: Deploy custom index.html page
       template:
-        src: templates/index.html.j2
-        dest: /var/www/html/index.html
-        owner: www-data
-        group: www-data
-        mode: '0644'
+        src: templates/index.html.j2  # Template Jinja2 para a página HTML personalizada
+        dest: /var/www/html/index.html  # Caminho onde a página será colocada no servidor Apache
+        owner: www-data                  # Define o proprietário da página como 'www-data'
+        group: www-data                  # Define o grupo da página como 'www-data'
+        mode: '0644'                     # Define as permissões da página como leitura/escrita para o proprietário e leitura para outros
 
+    # ===================================================================
     # TAREFA 3: CONFIGURAÇÃO DO AUTOFS
-    # Configura a montagem automática do compartilhamento NFS.
-
+    # ===================================================================
+    # Configura o autofs para montar automaticamente o compartilhamento NFS.
     - name: Apply autofs master map from template
       template:
-        src: templates/auto.master.j2
-        dest: /etc/auto.master
-      notify: Restart autofs
+        src: templates/auto.master.j2    # Template Jinja2 para o arquivo master do autofs
+        dest: /etc/auto.master            # Caminho onde o arquivo master será colocado
+      notify: Restart autofs               # Notifica o handler para reiniciar o serviço autofs após a mudança
 
     - name: Apply autofs NFS map from template
       template:
-        src: templates/auto.nfs.j2
-        dest: /etc/auto.nfs
-      notify: Restart autofs
+        src: templates/auto.nfs.j2        # Template Jinja2 para o arquivo NFS map do autofs
+        dest: /etc/auto.nfs               # Caminho onde o arquivo de NFS será colocado
+      notify: Restart autofs               # Notifica o handler para reiniciar o serviço autofs após a mudança
 
-  # HANDLERS: Reinicia o serviço se a configuração mudar.
-
+  # ===================================================================
+  # HANDLERS: AÇÕES EXECUTADAS APENAS SE NOTIFICADAS
+  # ===================================================================
+  # Handlers são usados para reiniciar serviços apenas quando a configuração é alterada.
   handlers:
     - name: Restart autofs
       service:
-        name: autofs
-        state: restarted
-
+        name: autofs                    # Nome do serviço a ser reiniciado
+        state: restarted                 # Define que o serviço deve ser reiniciado
