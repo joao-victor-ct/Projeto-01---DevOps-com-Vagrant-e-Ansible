@@ -1,131 +1,145 @@
 ---
 - hosts: arq
-  become: yes
+  become: yes               # Executa as tarefas com privilégios de superusuário (root)
   tasks:
+
+    # ===================================================================
     # TAREFA 1: INSTALAÇÃO DE PACOTES
-    # Instala todos os pacotes necessários para LVM, DHCP, DNS e NFS.
+    # ===================================================================
+    # Instala os pacotes necessários para configurar LVM, DHCP, DNS e NFS no servidor 'arq'.
     - name: Install required packages for arq server
       apt:
         name:
-          - lvm2
-          - isc-dhcp-server
-          - bind9
-          - nfs-kernel-server
+          - lvm2                  # Pacote para gerenciamento de LVM (Logical Volume Manager)
+          - isc-dhcp-server        # Pacote para configurar o servidor DHCP
+          - bind9                  # Pacote para configurar o servidor DNS (BIND9)
+          - nfs-kernel-server      # Pacote para configurar o servidor NFS
         state: present
-        update_cache: yes
+        update_cache: yes         # Atualiza o cache de pacotes antes da instalação
 
+    # ===================================================================
     # TAREFA 2: CONFIGURAÇÃO DO LVM
+    # ===================================================================
+    # Cria volumes lógicos para armazenamento e configura o sistema de arquivos.
     - name: Create 'dados' Volume Group
       community.general.lvg:
-        vg: dados
-        pvs: /dev/sdb,/dev/sdc,/dev/sdd
+        vg: dados                  # Nome do Volume Group
+        pvs: /dev/sdb,/dev/sdc,/dev/sdd  # Dispositivos físicos (discos) a serem usados
 
     - name: Create 'ifpb' Logical Volume with 15GB
       community.general.lvol:
-        vg: dados
-        lv: ifpb
-        size: 15g
+        vg: dados                  # Volume Group onde o volume lógico será criado
+        lv: ifpb                    # Nome do Logical Volume
+        size: 15g                   # Tamanho do Logical Volume
 
     - name: Format the 'ifpb' LV with ext4 filesystem
       community.general.filesystem:
-        fstype: ext4
-        dev: /dev/dados/ifpb
+        fstype: ext4               # Sistema de arquivos a ser usado
+        dev: /dev/dados/ifpb       # Caminho do volume lógico a ser formatado
 
     - name: Create /dados mount point
       file:
-        path: /dados
-        state: directory
-        mode: '0755'
+        path: /dados                # Caminho onde o volume será montado
+        state: directory            # Cria o diretório /dados, se necessário
+        mode: '0755'                # Define permissões para o diretório
 
     - name: Mount the 'ifpb' LV on /dados
       ansible.posix.mount:
-        path: /dados
-        src: /dev/dados/ifpb
-        fstype: ext4
-        state: mounted
+        path: /dados                # Diretório de montagem
+        src: /dev/dados/ifpb        # Fonte (volume lógico)
+        fstype: ext4                # Tipo do sistema de arquivos
+        state: mounted              # Garante que o volume está montado
 
+    # ===================================================================
     # TAREFA 3: CONFIGURAÇÃO DO SERVIDOR DHCP
+    # ===================================================================
+    # Configura o servidor DHCP para escutar na interface de rede eth1 e aplica as configurações de DHCP.
     - name: Configure DHCP server to listen on eth1
       lineinfile:
         path: /etc/default/isc-dhcp-server
         regexp: '^INTERFACESv4='
-        line: 'INTERFACESv4="eth1"'
+        line: 'INTERFACESv4="eth1"'  # Configura a interface de rede para escutar no DHCP
 
     - name: Apply DHCP configuration from template
       template:
-        src: templates/dhcpd.conf.j2
-        dest: /etc/dhcp/dhcpd.conf
-      notify: Restart isc-dhcp-server
+        src: templates/dhcpd.conf.j2   # Template do arquivo de configuração DHCP
+        dest: /etc/dhcp/dhcpd.conf     # Destino onde o arquivo será colocado
+      notify: Restart isc-dhcp-server  # Reinicia o servidor DHCP para aplicar a nova configuração
 
+    # ===================================================================
     # TAREFA 4: CONFIGURAÇÃO DO SERVIDOR DNS
-  
+    # ===================================================================
+    # Configura o servidor DNS BIND9, aplicando a configuração principal e as zonas.
     - name: Apply main DNS configuration from template
       template:
-        src: templates/named.conf.local.j2
-        dest: /etc/bind/named.conf.local
-      notify: Restart bind9
+        src: templates/named.conf.local.j2  # Template para o arquivo de configuração DNS
+        dest: /etc/bind/named.conf.local    # Destino do arquivo de configuração
+      notify: Restart bind9                  # Reinicia o servidor DNS após a mudança
 
     - name: Apply direct zone file from template
       template:
-        src: templates/db.devops.j2
-        dest: "/etc/bind/db.devops"
-      notify: Restart bind9
+        src: templates/db.devops.j2          # Template para o arquivo de zona direta
+        dest: "/etc/bind/db.devops"          # Destino do arquivo de zona direta
+      notify: Restart bind9                  # Reinicia o servidor DNS após a mudança
 
     - name: Apply reverse zone file from template
       template:
-        src: templates/db.192.168.56.j2
-        dest: "/etc/bind/db.192.168.56"
-      notify: Restart bind9
+        src: templates/db.192.168.56.j2      # Template para o arquivo de zona reversa
+        dest: "/etc/bind/db.192.168.56"      # Destino do arquivo de zona reversa
+      notify: Restart bind9                  # Reinicia o servidor DNS após a mudança
 
     - name: Allow DNS queries from internal network
       lineinfile:
-        path: /etc/bind/named.conf.options
-        insertafter: 'listen-on-v6 { any; };'
+        path: /etc/bind/named.conf.options  # Arquivo de configuração para opções do BIND
+        insertafter: 'listen-on-v6 { any; };'  # Insere a configuração após uma linha específica
         line: |
-          
           acl "internal-network" {
               192.168.56.0/24;
           };
 
           allow-query { any; };
           allow-query-cache { "internal-network"; };
-          
+
           forwarders {
-              1.1.1.1;
-              8.8.8.8;
+              1.1.1.1;   # Servidor DNS primário
+              8.8.8.8;   # Servidor DNS secundário
           };
-          forward only;
+          forward only;  # Força o encaminhamento de consultas DNS
 
+    # ===================================================================
     # TAREFA 5: CONFIGURAÇÃO DO SERVIDOR NFS
-
+    # ===================================================================
+    # Configura o servidor NFS, criando diretórios compartilhados e exportando-os.
     - name: Create /dados/nfs directory
       file:
-        path: /dados/nfs
-        state: directory
-        mode: '0777' # Permissões abertas inicialmente
+        path: /dados/nfs               # Cria o diretório /dados/nfs para compartilhamento
+        state: directory               # Garante que o diretório exista
+        mode: '0777'                   # Permissões abertas inicialmente para facilitar o acesso
 
     - name: Apply NFS exports configuration from template
       template:
-        src: templates/exports.j2
-        dest: /etc/exports
-      notify: Restart nfs-server
+        src: templates/exports.j2       # Template para o arquivo de configuração de exportação NFS
+        dest: /etc/exports              # Destino do arquivo de exportação NFS
+      notify: Restart nfs-server        # Reinicia o servidor NFS após a mudança
 
-
-  # HANDLERS: Reiniciam os serviços se as configurações mudarem.
-
+  # ===================================================================
+  # HANDLERS: AÇÕES EXECUTADAS APENAS SE NOTIFICADAS
+  # ===================================================================
+  # São usados para reiniciar serviços apenas quando a configuração é alterada.
   handlers:
     - name: Restart isc-dhcp-server
       service:
-        name: isc-dhcp-server
-        state: restarted
+        name: isc-dhcp-server           # Nome do serviço DHCP
+        state: restarted                # Define que o serviço deve ser reiniciado
 
     - name: Restart bind9
       service:
-        name: bind9
-        state: restarted
+        name: bind9                     # Nome do serviço DNS BIND9
+        state: restarted                # Define que o serviço deve ser reiniciado
 
     - name: Restart nfs-server
       service:
-        name: nfs-kernel-server
-        state: restarted
+        name: nfs-kernel-server         # Nome do serviço NFS
+        state: restarted                # Define que o serviço NFS deve ser reiniciado
+
 
