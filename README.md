@@ -50,17 +50,21 @@ git clone https://github.com/joao-victor-ct/Projeto-01---DevOps-com-Vagrant-e-An
 
 cd Projeto-01---DevOps-com-Vagrant-e-Ansible
 
-2. Suba as máquinas com Vagrant
+2. Inserir chave privada
+´´´
+ssh-keygen -t rsa -b 4096
+
+3. Suba as máquinas com Vagrant
 
 vagrant up
 
-3. Provisionar com Ansible
+4. Provisionar com Ansible
 
 O provisionamento pode ser executado automaticamente pelo Vagrant (quando configurado no Vagrantfile), ou manualmente:
 
 ansible-playbook -i ansible/hosts ansible/playbook.yml
 
-4. Acessar as VMs
+5. Acessar as VMs
 
 vagrant ssh <nome_da_vm>
 
