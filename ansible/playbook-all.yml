@@ -12,8 +12,8 @@
 
     - name: Upgrade all apt packages
       apt:
-        upgrade: dist
-        force_apt_get: yes
+        #upgrade: dist
+        #force_apt_get: yes
 
     # TAREFA 2: CONFIGURAÇÃO DE HORA (NTP)
     # Instala o 'chrony' e o configura para sincronizar com servidores brasileiros.
