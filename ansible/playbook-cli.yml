@@ -1,56 +1,62 @@
 ---
-- hosts: cli
-  become: yes
+- hosts: cli                  # Define que este playbook será executado na máquina 'cli'
+  become: yes                 # Garante que as tarefas sejam executadas com privilégios de superusuário (root)
   tasks:
-    
+
+    # ===================================================================
     # TAREFA 1: INSTALAÇÃO DE PACOTES
-    # Instala o Firefox, o xauth (para X11 forwarding) e o autofs.
-  
+    # ===================================================================
+    # Instala o Firefox, o xauth (necessário para X11 forwarding) e o autofs na máquina 'cli'.
     - name: Install Firefox, xauth, and autofs packages
       apt:
         name:
-          - firefox-esr
-          - xauth
-          - autofs
-        state: present
-        update_cache: yes
+          - firefox-esr           # Instala a versão estendida do Firefox (Firefox ESR)
+          - xauth                  # Instala o 'xauth', necessário para o X11 Forwarding
+          - autofs                 # Instala o 'autofs', que permite a montagem automática de diretórios NFS
+        state: present              # Garante que os pacotes sejam instalados
+        update_cache: yes           # Atualiza o cache do apt antes de instalar os pacotes
 
+    # ===================================================================
     # TAREFA 2: CONFIGURAÇÃO DO SSH PARA X11 FORWARDING
-    # Permite que aplicações gráficas sejam exibidas via SSH.
-  
+    # ===================================================================
+    # Permite que aplicativos gráficos (como o Firefox) sejam executados na máquina 'cli' via SSH,
+    # redirecionando a interface gráfica para a máquina local do usuário.
     - name: Enable X11 Forwarding in SSH server
       lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^#?X11Forwarding'
-        line: 'X11Forwarding yes'
-        state: present
-      notify: Restart sshd
+        path: /etc/ssh/sshd_config  # Caminho do arquivo de configuração do SSH
+        regexp: '^#?X11Forwarding'  # Procura pela linha que controla o X11 Forwarding
+        line: 'X11Forwarding yes'   # Habilita o X11 Forwarding para permitir execução de aplicações gráficas
+        state: present              # Garante que a linha esteja presente
+      notify: Restart sshd         # Notifica o handler para reiniciar o serviço SSH (sshd) após a alteração
 
+    # ===================================================================
     # TAREFA 3: CONFIGURAÇÃO DO AUTOFS
-    # Configura a montagem automática do compartilhamento NFS.
-    
+    # ===================================================================
+    # Configura a montagem automática de diretórios NFS usando o autofs.
     - name: Apply autofs master map from template
       template:
-        src: templates/auto.master.j2
-        dest: /etc/auto.master
-      notify: Restart autofs
+        src: templates/auto.master.j2   # Template Jinja2 para o arquivo 'auto.master'
+        dest: /etc/auto.master           # Caminho onde o arquivo 'auto.master' será colocado
+      notify: Restart autofs             # Notifica o handler para reiniciar o serviço autofs
 
     - name: Apply autofs NFS map from template
       template:
-        src: templates/auto.nfs.j2
-        dest: /etc/auto.nfs
-      notify: Restart autofs
+        src: templates/auto.nfs.j2       # Template Jinja2 para o arquivo 'auto.nfs'
+        dest: /etc/auto.nfs              # Caminho onde o arquivo 'auto.nfs' será colocado
+      notify: Restart autofs             # Notifica o handler para reiniciar o serviço autofs
 
-  # HANDLERS: Reiniciam os serviços se as configurações mudarem.
-
+  # ===================================================================
+  # HANDLERS: AÇÕES EXECUTADAS APENAS SE NOTIFICADAS
+  # ===================================================================
+  # Os handlers são usados para reiniciar serviços apenas quando as configurações são alteradas.
   handlers:
     - name: Restart autofs
       service:
-        name: autofs
-        state: restarted
+        name: autofs                   # Nome do serviço autofs
+        state: restarted                # Reinicia o serviço autofs para aplicar as novas configurações
 
     - name: Restart sshd
       service:
-        name: sshd
-        state: restarted
+        name: sshd                      # Nome do serviço SSH
+        state: restarted                 # Reinicia o serviço SSH para aplicar a nova configuração
 
