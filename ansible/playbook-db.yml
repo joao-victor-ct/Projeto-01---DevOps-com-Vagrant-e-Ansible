@@ -1,39 +1,45 @@
 ---
-- hosts: db
-  become: yes
+- hosts: db                   # Define que este playbook será executado apenas na VM 'db'
+  become: yes                 # Executa todas as tarefas com privilégios de administrador (root)
   tasks:
 
+    # ===================================================================
     # TAREFA 1: INSTALAÇÃO DE PACOTES
-    # Instala o MariaDB (servidor de banco de dados) e o autofs.
-  
+    # ===================================================================
+    # Instala o servidor de banco de dados MariaDB e o autofs.
+    # O autofs será usado para montar automaticamente o compartilhamento NFS.
     - name: Install MariaDB server and autofs packages
       apt:
         name:
-          - mariadb-server
-          - autofs
-        state: present
-        update_cache: yes
+          - mariadb-server     # Servidor de banco de dados MariaDB
+          - autofs             # Serviço de montagem automática de diretórios (NFS)
+        state: present         # Garante que os pacotes estejam instalados
+        update_cache: yes      # Atualiza o cache do apt antes da instalação
 
+    # ===================================================================
     # TAREFA 2: CONFIGURAÇÃO DO AUTOFS
-    # Configura a montagem automática do compartilhamento NFS.
-  
+    # ===================================================================
+    # Configura a montagem automática do diretório NFS exportado pela VM 'arq'.
+    # Isso permite que o banco de dados utilize armazenamento compartilhado.
     - name: Apply autofs master map from template
       template:
-        src: templates/auto.master.j2
-        dest: /etc/auto.master
-      notify: Restart autofs
+        src: templates/auto.master.j2   # Template do arquivo principal do autofs
+        dest: /etc/auto.master          # Local onde o arquivo será aplicado
+      notify: Restart autofs            # Reinicia o autofs se houver mudança
 
     - name: Apply autofs NFS map from template
       template:
-        src: templates/auto.nfs.j2
-        dest: /etc/auto.nfs
-      notify: Restart autofs
+        src: templates/auto.nfs.j2      # Template com as regras de montagem NFS
+        dest: /etc/auto.nfs             # Local do arquivo de mapeamento NFS
+      notify: Restart autofs            # Reinicia o autofs se houver mudança
 
-  # HANDLERS: Reinicia o serviço se a configuração mudar.
-  
+  # ===================================================================
+  # HANDLERS: AÇÕES EXECUTADAS APENAS SE NOTIFICADAS
+  # ===================================================================
+  # Os handlers garantem que o serviço seja reiniciado somente quando
+  # algum arquivo de configuração for alterado.
   handlers:
     - name: Restart autofs
       service:
-        name: autofs
-        state: restarted
-
+        name: autofs                    # Nome do serviço
+        state: restarted                # Reinicia o serviço autofs
