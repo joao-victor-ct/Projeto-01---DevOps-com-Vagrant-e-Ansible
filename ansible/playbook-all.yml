@@ -14,9 +14,9 @@
         force_apt_get: yes            # Força a atualização do apt-get
         cache_valid_time: 3600        # Mantém o cache válido por 1 hora
 
-    - name: Upgrade all apt packages
-      apt:
-        upgrade: dist                 # Atualiza todos os pacotes do sistema para a versão mais recente
+    #- name: Upgrade all apt packages
+      #apt:
+        #upgrade: dist                 # Atualiza todos os pacotes do sistema para a versão mais recente
 
     # ===================================================================
     # TAREFA 2: CONFIGURAÇÃO DE HORA (NTP)
