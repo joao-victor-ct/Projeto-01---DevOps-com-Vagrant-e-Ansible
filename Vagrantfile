@@ -8,7 +8,7 @@ NOME1 = "pedro"           # Nome do primeiro integrante
 NOME2 = "joao"            # Nome do segundo integrante
 MATRICULA_XX = "30"       # Matrícula do primeiro integrante
 MATRICULA_YY = "13"       # Matrícula do segundo integrante
-MATRICULA_XY_APP = "30"   # Matrícula associada à VM 'app'
+MATRICULA_XY_APP = "31"   # Matrícula associada à VM 'app'
 
 Vagrant.configure("2") do |config|
 
