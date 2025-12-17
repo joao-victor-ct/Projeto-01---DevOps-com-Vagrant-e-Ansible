@@ -17,6 +17,7 @@ Vagrant.configure("2") do |config|
   # ===================================================================
   # Definindo a caixa base a ser utilizada pelas VMs
   config.vm.box = "debian/bookworm64"  # Usando uma imagem Debian Bookworm 64-bit
+  config.vbguest.auto_update = false   # desabilita atualização automática 
   config.ssh.insert_key = false        # Desativando a inserção automática de chave SSH
 
   # Configuração do VirtualBox para todas as VMs
